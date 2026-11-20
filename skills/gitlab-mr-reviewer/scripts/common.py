@@ -355,7 +355,12 @@ def _remove_checkout(workspace_dir):
     root = Path(os.environ.get("WORKSPACE_BASE", "/workspace")).resolve() / "gitlab-reviews"
     path = Path(workspace_dir).resolve()
     if path == root or not path.is_relative_to(root):
-        raise ValueError("Refusing to remove a workspace outside GitLab review checkouts")
+        # Never delete anything outside this run's checkout root. A local
+        # automation gets a new WORKSPACE_BASE on every run, so a checkout from
+        # an earlier run lands here too: skip it rather than abort before the
+        # finished review or refinement is published.
+        print(f"Refusing to remove {path}: outside {root}", file=sys.stderr)
+        return
     shutil.rmtree(path, ignore_errors=True)
 
 
