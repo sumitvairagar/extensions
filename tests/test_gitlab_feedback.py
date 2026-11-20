@@ -127,6 +127,7 @@ class GitLabFeedbackTests(unittest.TestCase):
         os.environ.pop("OPENHANDS_CLOUD_API_URL", None)
         os.environ.pop("AUTOMATION_KV_TOKEN", None)
         os.environ.pop("AUTOMATION_API_URL", None)
+        os.environ.pop("AUTOMATION_AGENT_PROFILE_ID", None)
         self.app = {
             "mr": {"iid": 7, "state": "opened", "labels": ["openhands-review"], "sha": "abc", "title": "Change"},
             "issue": {"iid": 8, "state": "opened", "labels": ["openhands-refine"], "title": "Story", "description": "As a user I want X"},
@@ -432,6 +433,16 @@ class GitLabFeedbackTests(unittest.TestCase):
             [body["agent"]["llm"]["api_key"] for body in self.app["prompts"]],
             ["test-llm-key", "test-llm-key"],
         )
+
+    def test_local_conversations_launch_the_automations_agent_profile(self):
+        os.environ["AUTOMATION_AGENT_PROFILE_ID"] = "profile-1"
+        self.poll("review")
+        self.poll("refine")
+        self.assertEqual(
+            [body.get("agent_profile_id") for body in self.app["prompts"]],
+            ["profile-1", "profile-1"],
+        )
+        self.assertFalse(any("agent" in body for body in self.app["prompts"]))
 
     def test_project_path_and_invalid_config(self):
         self.assertEqual(workflow.project_path("https://gitlab.com/group/team/project.git/-/issues/8"), self.project)

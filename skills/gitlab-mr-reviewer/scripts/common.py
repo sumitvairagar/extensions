@@ -216,11 +216,14 @@ def _start_conversation(title, prompt, workspace_dir=None):
             body["agent_profile_id"] = os.environ["AUTOMATION_AGENT_PROFILE_ID"]
         _openhands("POST", "/api/v1/app-conversations", body)
         return conversation_id
-    settings = _openhands("GET", "/api/settings", extra_headers={"X-Expose-Secrets": "plaintext"})
-    body = {"agent": {"kind": "Agent", "llm": settings["agent_settings"]["llm"],
-                      "tools": [{"name": "terminal"}, {"name": "file_editor"}]},
-            "workspace": {"kind": "LocalWorkspace", "working_dir": str(workspace_dir or os.environ.get("WORKSPACE_BASE", "/workspace"))},
+    body = {"workspace": {"kind": "LocalWorkspace", "working_dir": str(workspace_dir or os.environ.get("WORKSPACE_BASE", "/workspace"))},
             "initial_message": {"content": [{"text": prompt}]}}
+    if os.environ.get("AUTOMATION_AGENT_PROFILE_ID"):
+        body["agent_profile_id"] = os.environ["AUTOMATION_AGENT_PROFILE_ID"]
+    else:
+        settings = _openhands("GET", "/api/settings", extra_headers={"X-Expose-Secrets": "plaintext"})
+        body["agent"] = {"kind": "Agent", "llm": settings["agent_settings"]["llm"],
+                         "tools": [{"name": "terminal"}, {"name": "file_editor"}]}
     return _openhands("POST", "/api/conversations", body)["id"]
 
 

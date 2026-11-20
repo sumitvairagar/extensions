@@ -401,6 +401,53 @@ def test_the_conversation_payload_carries_no_secrets_block_when_there_are_none(
     assert sent["body"]["workspace"] == {"working_dir": str(tmp_path)}
 
 
+def test_a_local_conversation_launches_the_automations_agent_profile(
+    main, monkeypatch, tmp_path
+):
+    """The Agent Server resolves the profile, so an ACP profile such as Claude
+    Code runs the task instead of the settings' LLM."""
+    sent = {}
+
+    def no_agent_dict(url, key):
+        raise AssertionError("the settings' LLM must not be read")
+
+    monkeypatch.setenv("AUTOMATION_AGENT_PROFILE_ID", "profile-1")
+    monkeypatch.setattr(main, "_get_agent_dict", no_agent_dict)
+    monkeypatch.setattr(main, "_build_secrets_payload", lambda url, key: {})
+    monkeypatch.setattr(main, "_get_mcp_config", lambda url, key: None)
+
+    def fake_request(agent_url, api_key, method, path, body=None):
+        sent["body"] = body
+        return {"id": "conv-1"}
+
+    monkeypatch.setattr(main, "_oh_request", fake_request)
+    main.create_conversation("http://agent", "key", "do the thing", tmp_path)
+
+    assert sent["body"]["agent_profile_id"] == "profile-1"
+    assert "agent" not in sent["body"]
+
+
+def test_a_local_conversation_without_a_profile_uses_the_settings_llm(
+    main, monkeypatch, tmp_path
+):
+    sent = {}
+
+    monkeypatch.delenv("AUTOMATION_AGENT_PROFILE_ID", raising=False)
+    monkeypatch.setattr(main, "_get_agent_dict", lambda url, key: {"kind": "Agent"})
+    monkeypatch.setattr(main, "_build_secrets_payload", lambda url, key: {})
+    monkeypatch.setattr(main, "_get_mcp_config", lambda url, key: None)
+
+    def fake_request(agent_url, api_key, method, path, body=None):
+        sent["body"] = body
+        return {"id": "conv-1"}
+
+    monkeypatch.setattr(main, "_oh_request", fake_request)
+    main.create_conversation("http://agent", "key", "do the thing", tmp_path)
+
+    assert sent["body"]["agent"] == {"kind": "Agent"}
+    assert "agent_profile_id" not in sent["body"]
+
+
 # ── MCP servers handed to the conversation ────────────────────────────────────
 
 

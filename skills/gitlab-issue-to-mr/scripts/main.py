@@ -1300,9 +1300,16 @@ def create_conversation(
         return _create_cloud_conversation(initial_message, title)
     payload: dict = {
         "workspace": {"working_dir": str(workspace_dir)},
-        "agent": _get_agent_dict(agent_url, api_key),
         "initial_message": {"content": [{"text": initial_message}]},
     }
+    # The automation service sets the variable only when the automation names
+    # an agent profile; the Agent Server launches that profile, as the cloud
+    # path does. Without one, the conversation uses the settings' LLM.
+    profile_id = os.environ.get("AUTOMATION_AGENT_PROFILE_ID")
+    if profile_id:
+        payload["agent_profile_id"] = profile_id
+    else:
+        payload["agent"] = _get_agent_dict(agent_url, api_key)
     secrets = _build_secrets_payload(agent_url, api_key)
     if secrets:
         payload["secrets"] = secrets
