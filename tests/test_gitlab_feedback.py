@@ -187,6 +187,21 @@ class GitLabFeedbackTests(unittest.TestCase):
         self.assertFalse(checkout.exists())
         self.assertEqual(len(self.app["mr_notes"]), 1)
 
+    def test_review_started_in_an_earlier_run_is_published_from_a_new_workspace_base(self):
+        self.poll("review")
+        first_checkout = Path(self.app["prompts"][0]["workspace"]["working_dir"])
+        self.assertTrue(first_checkout.is_dir())
+        # A local automation run gets its own WORKSPACE_BASE.
+        next_run = Path(self.tmp.name) / "next-run"
+        next_run.mkdir()
+        os.environ["WORKSPACE_BASE"] = str(next_run)
+        self.app["status"] = "idle"
+        self.app["response"] = "Review: src/a.py needs a test"
+        self.poll("review")
+        self.assertEqual(len(self.app["mr_notes"]), 1)
+        self.assertIn("openhands-gitlab-review:7:abc", self.app["mr_notes"][0]["body"])
+        self.assertTrue(first_checkout.is_dir())
+
     def test_head_change_reaps_old_checkout_without_publishing_old_review(self):
         self.poll("review")
         first = Path(self.app["prompts"][0]["workspace"]["working_dir"])
